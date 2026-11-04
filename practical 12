@@ -1,0 +1,103 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <iomanip>
+
+using namespace std;
+
+const int INF = 1e9;
+
+// Solves TSP using Dynamic Programming and Bitmasking
+// N: number of cities
+// dist: NxN adjacency matrix of distances
+void solveTSP(int N, const vector<vector<int>>& dist) {
+    // dp[mask][i] stores the minimum cost to visit all cities in 'mask', ending at city 'i'
+    vector<vector<int>> dp(1 << N, vector<int>(N, INF));
+    
+    // parent[mask][i] stores the previous city to reconstruct the optimal tour
+    vector<vector<int>> parent(1 << N, vector<int>(N, -1));
+
+    // Base Case: Start at city 0 with mask 1 (00...001 in binary)
+    dp[1][0] = 0;
+
+    // Iterate through all subset bitmasks
+    for (int mask = 1; mask < (1 << N); ++mask) {
+        for (int u = 0; u < N; ++u) {
+            // Skip if city 'u' is not visited in the current subset
+            if (!(mask & (1 << u))) continue;
+            if (dp[mask][u] == INF) continue;
+
+            // Try transitioning to an unvisited city 'v'
+            for (int v = 0; v < N; ++v) {
+                if (!(mask & (1 << v))) {
+                    int next_mask = mask | (1 << v);
+                    int new_cost = dp[mask][u] + dist[u][v];
+
+                    if (new_cost < dp[next_mask][v]) {
+                        dp[next_mask][v] = new_cost;
+                        parent[next_mask][v] = u; // Record transition
+                    }
+                }
+            }
+        }
+    }
+
+    // Find the minimum cost to complete the full tour (all cities visited) and return to city 0
+    int full_mask = (1 << N) - 1;
+    int min_total_cost = INF;
+    int last_city = -1;
+
+    for (int u = 1; u < N; ++u) {
+        if (dp[full_mask][u] != INF && dist[u][0] != INF) {
+            int total_cost = dp[full_mask][u] + dist[u][0];
+            if (total_cost < min_total_cost) {
+                min_total_cost = total_cost;
+                last_city = u;
+            }
+        }
+    }
+
+    if (min_total_cost >= INF) {
+        cout << "No valid TSP tour exists.\n";
+        return;
+    }
+
+    // Reconstruct the optimal tour
+    vector<int> tour;
+    int curr_mask = full_mask;
+    int curr_city = last_city;
+
+    while (curr_city != -1) {
+        tour.push_back(curr_city);
+        int prev_city = parent[curr_mask][curr_city];
+        curr_mask ^= (1 << curr_city); // Unset the bit
+        curr_city = prev_city;
+    }
+
+    reverse(tour.begin(), tour.end());
+    tour.push_back(0); // Complete the cycle back to start
+
+    // Output Results
+    cout << "Minimum TSP Tour Cost: " << min_total_cost << "\n";
+    cout << "Optimal Tour Path: ";
+    for (size_t i = 0; i < tour.size(); ++i) {
+        cout << tour[i] << (i + 1 < tour.size() ? " -> " : "\n");
+    }
+}
+
+int main() {
+    // Number of cities
+    int N = 4;
+
+    // Distance matrix between cities (0 to N-1)
+    vector<vector<int>> dist = {
+        {0,  10, 15, 20},
+        {10, 0,  35, 25},
+        {15, 35, 0,  30},
+        {20, 25, 30, 0}
+    };
+
+    solveTSP(N, dist);
+
+    return 0;
+}
